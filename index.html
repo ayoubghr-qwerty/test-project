@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spec Studio</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#6b6a64;--ac:#0f6e56;--act:#fff;--bd:#dedcd3;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#222220;--tx:#eceae2;--mut:#9b9a92;--ac:#3ecf9f;--act:#0b2a20;--bd:#3a3a36;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,Roboto,sans-serif;max-width:720px;margin:0 auto;padding:env(safe-area-inset-top,0px) 14px 90px}
+h1{font-size:22px;margin:18px 0 4px}h2{font-size:17px;margin:0}
+.mut{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:10px 14px;min-height:44px}
+button.p,.tabs button.on{background:var(--ac);color:var(--act);border-color:var(--ac);font-weight:600}
+input,textarea,select{font:inherit;width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-top:6px}
+textarea{min-height:76px;resize:vertical}
+label{display:block;margin-top:12px;font-size:15px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tabs{position:sticky;top:0;background:var(--bg);display:flex;gap:6px;padding:8px 0;z-index:5}
+.tabs button{flex:1;padding:8px 4px}
+details{background:var(--card);border:1px solid var(--bd);border-radius:14px;margin:8px 0;padding:4px 14px 12px}
+summary{padding:12px 0;font-weight:600;min-height:44px}
+.tag{font-size:12px;border:1px solid var(--bd);border-radius:20px;padding:2px 8px;margin-left:6px;color:var(--mut)}
+.bl{color:#b3401f;border-color:#b3401f}
+</style></head><body><div id="app"></div>
+<script>
+var MODS=[
+["Business and goals",[["b1","What problem does this solve, and for whom?"],["b2","What does success look like in 6 months? Give a number."],["b3","Why now? Deadline, and what drives it?"],["b4","Existing system, process or competitors?"]]],
+["Users and roles",[["u1","Who are the user types, their goals, tech level and devices?"],["u2","Who can see or change what? (permissions)"],["u3","Login method? Languages, accessibility, right-to-left?"]]],
+["Core workflows",[["w1","Walk through the main workflow step by step (trigger, steps, result)."],["w2","What can go wrong at each step, and what should happen?"],["w3","What is done manually today that should be automated?"]]],
+["Scope",[["s1","Must-have features for launch (one per line)?"],["s2","Should-have and nice-to-have features (one per line)?"],["s3","What is explicitly NOT in version 1?"],["s4","‘Obvious’ features assumed (search, emails, reports, export, admin)?"]]],
+["Data and content",[["d1","What data is stored? Where is it now, what format, how much?"],["d2","Who creates and updates content? Any data import?"],["d3","Sensitive data? Retention and deletion rules?"]]],
+["Integrations",[["i1","Payments, email, SMS, WhatsApp, push: which and when?"],["i2","Existing tools or hardware to connect? Who owns the accounts and keys?"]]],
+["Design",[["g1","Reference products you like or dislike, and why?"],["g2","Brand assets? Tone? Revision rounds included?"]]],
+["Security and legal",[["x1","Damage if data leaked? Laws that apply (GDPR, PCI, health)?"],["x2","Audit logs, backups, terms and privacy policy needed?"]]],
+["Process and handover",[["p1","Deadline, budget, and who is the single approver?"],["p2","Payment milestones, ownership, support after launch, change-request rules?"]]]];
+var PLAT={web:["Platform: web",[["t1","Marketing site, logged-in app, or both? SEO, blog, CMS, multi-language?"],["t2","Domain and hosting: who owns them? Traffic now and in a year?"],["t3","Browsers and devices that must be supported?"]]],
+desktop:["Platform: desktop",[["t1","Which OS and versions: Windows, macOS, Linux?"],["t2","Offline needs? If it syncs, which side wins conflicts?"],["t3","Local database, files, USB or serial devices, printers?"],["t4","Install and auto-update method, code signing, admin rights, multi-user?"]]]};
+var CRIT=["b2","u2","w1","s1","s3","p1"];
+var VAGUE=["fast","quick","quickly","simple","easy","many","lots","user-friendly","modern","intuitive","scalable","secure","flexible","seamless","large","small","soon","etc","like uber","like airbnb","similar to"];
+var STATIC=["For each main workflow: what do users see when there is no data yet (empty state)?","What happens when the network, payment or a third-party service fails?","Who owns the domain, hosting, store and API accounts at handover?","What are the performance targets (page or action under X seconds, Y users at once)?","How are backups and data recovery handled, and who is responsible?","What counts as a bug versus a change request, and how are changes priced?"];
+var LBL={a:"Home",d:"Discover",c:"Clarify",o:"Docs"};
+var S,TAB="d",SHOW=null;
+try{S=JSON.parse(localStorage.getItem("ss_off1"))}catch(e){}
+if(!S||!S.projects)S={projects:[],cur:null};
+function save(){try{localStorage.setItem("ss_off1",JSON.stringify(S))}catch(e){}}
+function $(i){return document.getElementById(i)}
+function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function cur(){return S.projects.find(function(p){return p.id===S.cur})}
+function mods(p){var m=MODS.slice();m.splice(7,0,PLAT[p.type]);return m}
+function has(p,k){return p.a[k]&&p.a[k].trim()}
+function qtext(p,k){var r="";mods(p).forEach(function(m){m[1].forEach(function(q){if(q[0]===k)r=q[1]})});return r}
+function gaps(p){var g=[];
+  CRIT.forEach(function(k){if(!has(p,k))g.push({k:"m:"+k,q:"Unanswered key question: "+qtext(p,k),b:1})});
+  Object.keys(p.a).forEach(function(k){var t=(p.a[k]||"").toLowerCase();
+    VAGUE.forEach(function(w){if(new RegExp("(^|[^a-z])"+w+"([^a-z]|$)").test(t))g.push({k:"v:"+k+":"+w,q:"You wrote “"+w+"” (in: "+qtext(p,k).slice(0,45)+"…). What exact number, rule or example does that mean?",b:0})})});
+  if(has(p,"s1")&&items(p.a.s1).length>8)g.push({k:"c:big",q:"The must-have list has "+items(p.a.s1).length+" items. Which 3 to 5 are truly needed for the first release?",b:1});
+  STATIC.forEach(function(q,i){g.push({k:"x:"+i,q:q,b:0})});return g}
+function items(t){var a=(t||"").split(/\n|;/);if(a.length===1)a=a[0].split(",");return a.map(function(s){return s.replace(/^\s*(\d+[.)]|[-•*])\s*/,"").trim()}).filter(Boolean)}
+function notes(p){var t="PROJECT: "+p.name+" ("+p.type+" app)\n";
+  mods(p).forEach(function(m){var l=m[1].filter(function(q){return has(p,q[0])});if(l.length){t+="\n## "+m[0]+"\n";l.forEach(function(q){t+="Q: "+q[1]+"\nA: "+p.a[q[0]]+"\n"})}});
+  var c=gaps(p).filter(function(x){return p.c[x.k]&&p.c[x.k].trim()});
+  if(c.length){t+="\n## Clarifications\n";c.forEach(function(x){t+="Q: "+x.q+"\nA: "+p.c[x.k]+"\n"})}return t}
+function A(p,k){return has(p,k)?p.a[k].trim():"_Not answered yet. Ask the client._"}
+function openQs(p){var r="";gaps(p).forEach(function(x){if(!(p.c[x.k]&&p.c[x.k].trim()))r+="- "+(x.b?"[BLOCKER] ":"")+x.q+"\n"});return r||"- None\n"}
+function featBlocks(p,k,start,pre){var r="";items(p.a[k]).forEach(function(f,i){var id=pre+String(start+i).padStart(3,"0");
+  r+="### "+id+": "+f+"\n- User story: As a [role], I want "+f.toLowerCase()+", so that [benefit].\n- Acceptance (Given/When/Then): Given [state], when [action], then [measurable result].\n- Empty, error and loading states: [define]\n\n"});return r||"_None listed._\n\n"}
+var DOC={
+prd:["PRD.md",function(p){return "# PRD: "+p.name+"\nType: "+p.type+" app\n\n## 1. Overview\n**Problem:** "+A(p,"b1")+"\n\n**Success metrics:** "+A(p,"b2")+"\n\n**Why now / deadline:** "+A(p,"b3")+"\n\n**Existing system and competitors:** "+A(p,"b4")+"\n\n## 2. Users and roles\n"+A(p,"u1")+"\n\n**Permissions:** "+A(p,"u2")+"\n\n**Login, language, accessibility:** "+A(p,"u3")+"\n\n## 3. Core workflows\n"+A(p,"w1")+"\n\n**Failure cases:** "+A(p,"w2")+"\n\n**To automate:** "+A(p,"w3")+"\n\n## 4. Features\n### Must have\n"+featBlocks(p,"s1",1,"F-")+"### Should / could have\n"+featBlocks(p,"s2",101,"F-")+"### Out of scope (version 1)\n"+A(p,"s3")+"\n\n### Assumed obvious features\n"+A(p,"s4")+"\n\n## 5. Data and content\n"+A(p,"d1")+"\n\nContent owner / import: "+A(p,"d2")+"\n\nSensitive data and retention: "+A(p,"d3")+"\n\n## 6. Integrations\n"+A(p,"i1")+"\n\nTools, hardware, account owners: "+A(p,"i2")+"\n\n## 7. Design and UX\n"+A(p,"g1")+"\n\nBrand, tone, revisions: "+A(p,"g2")+"\n\n## 8. Platform\n"+PLAT[p.type][1].map(function(q){return "**"+q[1]+"**\n"+A(p,q[0])}).join("\n\n")+"\n\n## 9. Security and legal\n"+A(p,"x1")+"\n\n"+A(p,"x2")+"\n\n## 10. Process and handover\n"+A(p,"p1")+"\n\n"+A(p,"p2")+"\n\n## 11. Release phases\n1. Foundation: setup, data model, auth\n2. Core workflow\n3. Secondary features\n4. Polish and testing\n5. Packaging and deployment\n\n## 12. Open questions\n"+openQs(p)}],
+srs:["SRS.md",function(p){var n=0,fr="";items(p.a.s1).concat(items(p.a.s2)).forEach(function(f){n++;fr+="- FR-"+String(n).padStart(3,"0")+": The system shall support: "+f+" (acceptance: [measurable])\n"});
+  return "# SRS: "+p.name+"\n\n## 1. Introduction\nPurpose, scope and definitions for a "+p.type+" application.\n\n## 2. Overall description\nUsers and roles:\n"+A(p,"u1")+"\n\nPermissions:\n"+A(p,"u2")+"\n\nConstraints and platform:\n"+PLAT[p.type][1].map(function(q){return A(p,q[0])}).join("\n\n")+"\n\n## 3. Functional requirements\n"+(fr||"_Add features in Discover._\n")+"\n## 4. External interfaces and integrations\n"+A(p,"i1")+"\n"+A(p,"i2")+"\n\n## 5. Data requirements\n"+A(p,"d1")+"\nRetention: "+A(p,"d3")+"\n\n## 6. Non-functional requirements (give each a number)\n- NFR-001 Performance: [action completes in X seconds for Y users]\n- NFR-002 Availability: [target]\n- NFR-003 Security: "+A(p,"x1")+"\n- NFR-004 Privacy and compliance: "+A(p,"x2")+"\n- NFR-005 Accessibility and language: "+A(p,"u3")+"\n\n## 7. Error handling and edge cases\n"+A(p,"w2")+"\n\n## 8. Tech stack\n[Propose and justify]\n\n## 9. Traceability\nFeature ID to FR to test case: [fill]\n\n## 10. Open questions\n"+openQs(p)}],
+agents:["AGENTS.md",function(p){return "# AGENTS.md: "+p.name+"\n\n## Project\n"+A(p,"b1")+"\nType: "+p.type+" app. Specs: docs/PRD.md and docs/SRS.md are the source of truth.\n\n## Stack and commands\nStack: [decide]\nRun: [cmd]  Test: [cmd]  Build: [cmd]\n\n## Rules\n- Build only what the spec describes; ask before adding features.\n- No new dependencies without asking.\n- No destructive data or schema changes without asking.\n- Never hardcode secrets.\n- Handle empty, error and loading states for every screen.\n- Keep tasks small; run tests after each task; commit after each working task.\n\n## Phases (each must run and be testable)\n1. Foundation: setup, data model, auth\n2. Core workflow\n3. Secondary features\n4. Polish and testing\n5. Packaging and deployment\n\n## Out of scope\n"+A(p,"s3")+"\n\n## Ask me first\n"+openQs(p)}],
+summary:["client-summary.md",function(p){return "# "+p.name+": project summary\n\n**What we will build:** "+A(p,"b1")+"\n\n**Who uses it:** "+A(p,"u1")+"\n\n**Included in version 1:**\n"+items(p.a.s1).map(function(x){return "- "+x}).join("\n")+"\n\n**Not included:** "+A(p,"s3")+"\n\n**What we need from you:** content, brand files, accounts and API keys, and feedback within an agreed time.\n\n**Timeline and payments:** "+A(p,"p1")+"\n\n**Changes:** anything outside this summary is a change request, estimated and approved in writing before work starts.\n\nApproved by: ____________  Date: ________"}],
+ai:["ai-prompt-pack.md",function(p){return "You are a senior product manager and software architect. Use the project notes below. Do these in order, stopping after step 1 to wait for my answers.\n\nSTEP 1: Do not write documents yet. List every ambiguity, contradiction and missing requirement (roles, permissions, error states, data model, integrations, auth, security, performance numbers, platform limits, scope). For each give one client question marked BLOCKER or CAN ASSUME with your proposed default.\n\nSTEP 2: Write a complete PRD in Markdown for an AI coding agent: overview and metrics, users and permission matrix, workflows, features with IDs and Given/When/Then criteria, out of scope, data entities, integrations, UX, non-functional summary, phased release plan, assumptions and open questions. Never invent facts; label assumptions.\n\nSTEP 3: Write an IEEE 29148 style SRS with atomic testable FR-xxx and measurable NFR-xxx, security requirements, edge cases, platform requirements, tech stack with justification, and a traceability matrix.\n\nSTEP 4: Write AGENTS.md plus a dependency-ordered phase and task plan with definition of done.\n\n=== PROJECT NOTES ===\n"+notes(p)+"\n=== Gaps found by the app ===\n"+openQs(p)}]};
+function render(){var p=cur(),h="";
+  if(!p){h+="<h1>Spec Studio</h1><div class='mut'>Offline client discovery to PRD, SRS and build files. Saved on this phone.</div><div class='card'><h2>New project</h2><label>Project name<input id='nn' placeholder='e.g. Clinic booking site'></label><label>Type<select id='nt'><option value='web'>Website or web app</option><option value='desktop'>Desktop app</option></select></label><p><button class='p' onclick='addP()'>Create project</button></p></div>";
+    if(S.projects.length)h+="<h2 style='margin-top:20px'>Your projects</h2>";
+    S.projects.forEach(function(x){var n=Object.keys(x.a).filter(function(k){return has(x,k)}).length;h+="<div class='card'><h2>"+esc(x.name)+"</h2><div class='mut'>"+x.type+" · "+n+" answers</div><div class='row' style='margin-top:10px'><button class='p' onclick='openP(\""+x.id+"\")'>Open</button><button onclick='delP(\""+x.id+"\")'>Delete</button></div></div>"});
+    h+="<div class='card'><h2>Backup and restore</h2><p class='row'><button onclick='backup()'>Backup all</button></p><textarea id='rs' placeholder='Paste a backup here to restore'></textarea><p><button onclick='restore()'>Restore</button> <span class='mut' id='rst'></span></p></div>";
+  }else{
+    h+="<div style='margin-top:12px'><button onclick='openP(null)'>← Projects</button></div><h1>"+esc(p.name)+"</h1><div class='tabs'>"+["d","c","o"].map(function(t){return "<button class='"+(TAB===t?"on":"")+"' onclick='tab(\""+t+"\")'>"+LBL[t]+"</button>"}).join("")+"</div>";
+    if(TAB==="d"){h+="<div class='mut'>Fill what you learn on the call. Put one feature per line in the feature questions.</div>";
+      mods(p).forEach(function(m,i){var f=m[1].filter(function(q){return has(p,q[0])}).length;h+="<details"+(i===0?" open":"")+"><summary>"+esc(m[0])+"<span class='tag'>"+f+"/"+m[1].length+"</span></summary>";
+        m[1].forEach(function(q){h+="<label>"+esc(q[1])+"<textarea oninput='ans(\""+q[0]+"\",this.value)'>"+esc(p.a[q[0]]||"")+"</textarea></label>"});h+="</details>"})}
+    if(TAB==="c"){var g=gaps(p);h+="<div class='mut'>The app checks your answers for missing key info and vague words, and adds questions every project needs. "+g.filter(function(x){return x.b}).length+" blockers.</div>";
+      g.forEach(function(x){h+="<div class='card'><b>"+esc(x.q)+"</b>"+(x.b?"<span class='tag bl'>blocker</span>":"")+"<textarea placeholder='Answer after asking the client' oninput='clr(\""+x.k+"\",this.value)'>"+esc(p.c[x.k]||"")+"</textarea></div>"})}
+    if(TAB==="o"){h+="<div class='mut'>Built from your answers. Anything missing is marked so you can ask the client. Copy or share, then paste into your AI tool or repo.</div>";
+      [["prd","PRD"],["srs","SRS"],["agents","AGENTS.md (build pack)"],["summary","Client summary"],["ai","AI prompt pack (paste into any AI)"]].forEach(function(d){h+="<div class='card'><h2>"+d[1]+"</h2><p class='row'><button class='p' onclick='show(\""+d[0]+"\")'>"+(SHOW===d[0]?"Refresh":"Generate")+"</button>"+(SHOW===d[0]?"<button onclick='cp()'>Copy</button><button onclick='sh()'>Share / save</button>":"")+"</p><span class='mut' id='st'></span>"+(SHOW===d[0]?"<textarea id='ta' style='min-height:240px;font:13px/1.5 monospace'>"+esc(DOC[d[0]][1](p))+"</textarea>":"")+"</div>"})}}
+  var y=window.scrollY;$("app").innerHTML=h;window.scrollTo(0,y)}
+function addP(){var n=$("nn").value.trim();if(!n)return;var p={id:"p"+Date.now(),name:n,type:$("nt").value,a:{},c:{}};S.projects.unshift(p);S.cur=p.id;TAB="d";save();render()}
+function openP(id){S.cur=id;TAB="d";SHOW=null;save();render();window.scrollTo(0,0)}
+function delP(id){if(!confirm("Delete this project?"))return;S.projects=S.projects.filter(function(x){return x.id!==id});save();render()}
+function tab(t){TAB=t;SHOW=null;render()}
+function ans(k,v){cur().a[k]=v;save()}
+function clr(k,v){cur().c[k]=v;save()}
+function show(k){SHOW=k;render()}
+function txt(){var t=$("ta");return t?t.value:""}
+function cp(){var t=txt();try{navigator.clipboard.writeText(t).then(function(){$("st").textContent="Copied."})}catch(e){$("ta").select();document.execCommand("copy");$("st").textContent="Copied."}}
+function share(t,title){var P=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;
+  if(P)return P.share({title:title,text:t,dialogTitle:"Save or send"}).catch(function(){});
+  if(navigator.share)return navigator.share({title:title,text:t}).catch(function(){});
+  try{navigator.clipboard.writeText(t);alert("Copied to clipboard.")}catch(e){}}
+function sh(){share(txt(),DOC[SHOW][0])}
+function backup(){share(JSON.stringify(S.projects),"spec-studio-backup.json")}
+function restore(){try{var a=JSON.parse($("rs").value);if(!Array.isArray(a))throw 0;a.forEach(function(p){if(p&&p.id&&p.name&&!S.projects.some(function(x){return x.id===p.id}))S.projects.push(p)});save();render()}catch(e){$("rst").textContent="That backup isn’t valid."}}
+render();
+</script></body></html>
